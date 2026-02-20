@@ -1,15 +1,16 @@
 import os.path
 import os
 from timeit import default_timer as timer
-from collections import deque, Counter
+from collections import Counter
+from typing import Iterator
 
 
 class Node:
     __slots__ = ["childs", "meta"]
 
-    def __init__(self, numbers: deque[int]) -> None:
-        num_childs = numbers.popleft()
-        num_meta = numbers.popleft()
+    def __init__(self, numbers: Iterator[int]) -> None:
+        num_childs = next(numbers)
+        num_meta = next(numbers)
 
         self.childs: list[Node] = []
         for _ in range(num_childs):
@@ -18,7 +19,7 @@ class Node:
 
         self.meta: list[int] = []
         for _ in range(num_meta):
-            self.meta.append(numbers.popleft())
+            self.meta.append(next(numbers))
 
     def sum_meta(self) -> int:
         return sum(self.meta) + sum(child.sum_meta() for child in self.childs)
@@ -39,7 +40,7 @@ input_path = os.path.join(dir_path, "input.txt")
 with open(input_path) as f:
     data = f.read()
 
-numbers = deque([int(c) for c in data.split(" ")])
+numbers = iter([int(c) for c in data.split(" ")])
 
 tree = Node(numbers)
 print("Part 1:", tree.sum_meta())
