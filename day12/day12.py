@@ -4,7 +4,7 @@ import os.path
 import os
 
 
-def conway(data: str, steps: int) -> int:
+def parse(data: str) -> tuple[np.ndarray, np.ndarray]:
     initial, rules = data.split("\n\n")
     *rest, init = initial.split(" ")
     pots = np.array([1 if c == "#" else 0 for c in init])
@@ -19,13 +19,17 @@ def conway(data: str, steps: int) -> int:
         idx = KERNEL @ configuration
         lookup[idx] = 1
 
+    return pots, lookup
+
+
+def conway(pots: np.ndarray, lookup: np.ndarray, steps: int) -> int:
+    KERNEL = np.array([2**i for i in range(5)], dtype=int)  # reverse
     for _ in range(steps):
         pots = np.pad(pots, 1)
-        conv = convolve(pots, KERNEL[::-1], mode="constant")
+        conv = convolve(pots, KERNEL, mode="constant")
         pots = lookup[conv]  # type: ignore
 
     idx = np.arange(-steps, len(pots)-steps)
-
     return np.dot(pots, idx)
 
 
@@ -35,11 +39,12 @@ def main() -> None:
     with open(input_path) as f:
         data = f.read()
 
-    p1 = conway(data, 20)
+    pots, lookup = parse(data)
+    p1 = conway(pots, lookup, 20)
     print("Part 1:", p1)
 
     # zeroes in the middle grow
-    print(f"500 steps: {conway(data, 500)}, 5000 steps: {conway(data, 5000)}")
+    print(f"500 steps: {conway(pots, lookup, 500)}, 5000 steps: {conway(pots, lookup, 5000)}")
     # 50 billion has 10 zeroes
     zeroes = 10
     p2 = "21" + "0"*(zeroes-1) + "61"
