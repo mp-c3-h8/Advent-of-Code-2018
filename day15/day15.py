@@ -153,7 +153,6 @@ def battle(battlefield: Battlefield, units: list[Unit], empower_elves: bool = Fa
         raise ValueError("Max iterations reached.")
 
 
-@timed("Part 2")
 def empower_elves(battlefield: Battlefield, units: list[Unit]) -> int:
 
     for power in range(4, 10**6):
@@ -167,7 +166,7 @@ def empower_elves(battlefield: Battlefield, units: list[Unit]) -> int:
     else:
         raise ValueError("Max iterations reached.")
 
-
+@timed("All")
 def main() -> None:
     dir_path = os.path.dirname(os.path.realpath(__file__))
     input_path = os.path.join(dir_path, "input.txt")
