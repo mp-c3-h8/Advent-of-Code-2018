@@ -63,19 +63,18 @@ def water_reach(grid: Grid) -> tuple[int, int]:
 
     # add all settled water
     while outlets:
-        curr_outlet = outlets[-1]
+        curr_outlet = outlets.pop()
 
         # outlet already done?
         if curr_outlet in outlets_done:
-            outlets.pop()
             continue
+        outlets_done.add(curr_outlet)
 
         # drop a droplet till it hits clay or settled water
         pos = drop_water(grid, curr_outlet, y_max)
 
         # out of y-bounds
         if pos is None:
-            outlets_done.add(outlets.pop())
             continue
 
         while True:
@@ -84,7 +83,6 @@ def water_reach(grid: Grid) -> tuple[int, int]:
             walls_hit, new_outlets = extend_left_and_right(grid, pos)
 
             if len(new_outlets) != 0:
-                outlets_done.add(outlets.pop())
                 outlets.extend(new_outlets)
                 break
 
