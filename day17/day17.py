@@ -66,39 +66,37 @@ def water_reach(grid: Grid) -> tuple[int, int]:
 
         # drop till droplet hits solid
         pos = drop_water(grid, curr_outlet, y_max)
-
-        if pos is not None:
-            # check to the left and right
-            hit_wall_left, left = hit_wall(grid, pos, -1)
-            hit_wall_right, right = hit_wall(grid, pos, 1)
-
-            # water enclosed between left and right
-            if hit_wall_left and hit_wall_right:
-                y, x_from = left
-                y, x_to = right
-                for x in range(x_from, x_to+1):
-                    grid[(y, x)] = "~"
-
-                # outlet under water?
-                # if y == curr_outlet[0]:
-                #     outlets_done.add(outlets.pop())
-                continue
-
-            new_outlets = []
-            if not hit_wall_left:
-                new_outlets.append(left)
-            if not hit_wall_right:
-                new_outlets.append(right)
-
-            # new outlets already done?
-            if all(o in outlets_done for o in new_outlets):
-                # then the prior outlet is done aswell
-                outlets_done.add(outlets.pop())
-                continue
-
-            outlets.extend(new_outlets)
-        else:
+        if pos is None:
             outlets_done.add(outlets.pop())
+            continue
+
+        # check to the left and right
+        hit_wall_left, left = hit_wall(grid, pos, -1)
+        hit_wall_right, right = hit_wall(grid, pos, 1)
+
+        # water enclosed between left and right
+        if hit_wall_left and hit_wall_right:
+            y, x_from = left
+            y, x_to = right
+            for x in range(x_from, x_to+1):
+                grid[(y, x)] = "~"
+
+            continue
+
+        new_outlets = []
+        if not hit_wall_left:
+            new_outlets.append(left)
+        if not hit_wall_right:
+            new_outlets.append(right)
+
+        # new outlets already done?
+        if all(o in outlets_done for o in new_outlets):
+            # then the prior outlet is done aswell
+            outlets_done.add(outlets.pop())
+            continue
+
+        outlets.extend(new_outlets)
+
 
     # add remaining reachable squares
     flowing: set[Pos] = set()
@@ -106,7 +104,6 @@ def water_reach(grid: Grid) -> tuple[int, int]:
     outlets = [(y_min, 500)]
     while outlets:
         curr_outlet = outlets.pop()
-        # print_grid(grid, all_outlets)
         if curr_outlet in outlets_done:
             continue
         outlets_done.add(curr_outlet)
@@ -138,7 +135,7 @@ def water_reach(grid: Grid) -> tuple[int, int]:
 
     return num_at_rest, num_flowing
 
-
+@timed("All")
 def main() -> None:
     dir_path = os.path.dirname(os.path.realpath(__file__))
     input_path = os.path.join(dir_path, "input.txt")
