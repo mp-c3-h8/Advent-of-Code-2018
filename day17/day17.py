@@ -66,6 +66,8 @@ def water_reach(grid: Grid) -> tuple[int, int]:
 
         # drop till droplet hits solid
         pos = drop_water(grid, curr_outlet, y_max)
+
+        # didnt hit solid ground -> out of y-bounds
         if pos is None:
             outlets_done.add(outlets.pop())
             continue
@@ -96,7 +98,6 @@ def water_reach(grid: Grid) -> tuple[int, int]:
             continue
 
         outlets.extend(new_outlets)
-
 
     # add remaining reachable squares
     flowing: set[Pos] = set()
@@ -134,6 +135,7 @@ def water_reach(grid: Grid) -> tuple[int, int]:
     # print_grid(grid, flowing)
 
     return num_at_rest, num_flowing
+
 
 @timed("All")
 def main() -> None:
