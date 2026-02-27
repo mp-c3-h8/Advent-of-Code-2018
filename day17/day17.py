@@ -38,14 +38,20 @@ def drop_water(grid: Grid, pos: Pos, y_max: int) -> Pos | None:
     return None
 
 
-def hit_wall(grid: Grid, pos: Pos, x_direction: int) -> tuple[bool, Pos]:
-    y, x = pos
-    while True:
-        if (y+1, x) not in grid:
-            return False, (y, x)
-        if (y, x+x_direction) in grid:
-            return True, (y, x)
-        x += x_direction
+def extend_left_and_right(grid: Grid, pos: Pos) -> tuple[list[Pos], list[Pos]]:
+    new_outlets: list[Pos] = []
+    walls_hit: list[Pos] = []
+    for x_direction in (-1, 1):
+        y, x = pos
+        while True:
+            if (y+1, x) not in grid:
+                new_outlets.append((y, x))
+                break
+            if (y, x+x_direction) in grid:
+                walls_hit.append((y, x))
+                break
+            x += x_direction
+    return walls_hit, new_outlets
 
 
 def water_reach(grid: Grid) -> tuple[int, int]:
@@ -59,45 +65,37 @@ def water_reach(grid: Grid) -> tuple[int, int]:
     while outlets:
         curr_outlet = outlets[-1]
 
-        # outlet already done or under water?
-        if curr_outlet in outlets_done or curr_outlet in grid:
+        # outlet already done?
+        if curr_outlet in outlets_done:
             outlets.pop()
             continue
 
-        # drop till droplet hits solid
+        # drop a droplet till it hits clay or settled water
         pos = drop_water(grid, curr_outlet, y_max)
 
-        # didnt hit solid ground -> out of y-bounds
+        # out of y-bounds
         if pos is None:
             outlets_done.add(outlets.pop())
             continue
 
-        # check to the left and right
-        hit_wall_left, left = hit_wall(grid, pos, -1)
-        hit_wall_right, right = hit_wall(grid, pos, 1)
+        while True:
+            # check to the left and right
+            # len(walls_hit) + len(new_outlets) == 2
+            walls_hit, new_outlets = extend_left_and_right(grid, pos)
 
-        # water enclosed between left and right
-        if hit_wall_left and hit_wall_right:
-            y, x_from = left
-            y, x_to = right
+            if len(new_outlets) != 0:
+                outlets_done.add(outlets.pop())
+                outlets.extend(new_outlets)
+                break
+
+            # water enclosed between two walls
+            y, x_from = walls_hit[0]  # left
+            y, x_to = walls_hit[1]  # right
             for x in range(x_from, x_to+1):
                 grid[(y, x)] = "~"
 
-            continue
-
-        new_outlets = []
-        if not hit_wall_left:
-            new_outlets.append(left)
-        if not hit_wall_right:
-            new_outlets.append(right)
-
-        # new outlets already done?
-        if all(o in outlets_done for o in new_outlets):
-            # then the prior outlet is done aswell
-            outlets_done.add(outlets.pop())
-            continue
-
-        outlets.extend(new_outlets)
+            # can raise higher than the outlet itself (to fill ie a bathtub)
+            pos = (pos[0]-1, pos[1])
 
     # add remaining reachable squares
     flowing: set[Pos] = set()
@@ -110,25 +108,18 @@ def water_reach(grid: Grid) -> tuple[int, int]:
         outlets_done.add(curr_outlet)
 
         pos = drop_water(grid, curr_outlet, y_max)
-        if pos is not None:
-            for y in range(curr_outlet[0], pos[0]+1):
-                flowing.add((y, curr_outlet[1]))
-            hit_wall_left, left = hit_wall(grid, pos, -1)
-            hit_wall_right, right = hit_wall(grid, pos, 1)
-
+        if pos is None:  # out of y-bounds
+            y_to = y_max + 1
+        else:
+            y_to = pos[0] + 1
+            walls_hit, new_outlets = extend_left_and_right(grid, pos)
+            left, right = sorted(walls_hit+new_outlets)
             for x in range(left[1], right[1]+1):
                 flowing.add((pos[0], x))
-
-            new_outlets = []
-            if not hit_wall_left:
-                new_outlets.append(left)
-            if not hit_wall_right:
-                new_outlets.append(right)
             outlets.extend(new_outlets)
 
-        else:
-            for y in range(curr_outlet[0], y_max+1):
-                flowing.add((y, curr_outlet[1]))
+        for y in range(curr_outlet[0], y_to):
+            flowing.add((y, curr_outlet[1]))
 
     num_at_rest = len(grid) - num_clay
     num_flowing = len(flowing)
