@@ -2,13 +2,15 @@ from typing import Callable
 
 type Registers = list[int]
 type Operation = Callable[[int, int, int], None]
+type Parameters = tuple[int, int, int]
+type Program = list[tuple[Operation, Parameters]]
 
 
 class Device:
-    __slots__ = ["registers", "operations"]
+    __slots__ = ["registers", "operations", "program", "ip"]
 
     def __init__(self, num_registers: int) -> None:
-        self.registers: Registers = [0]*num_registers
+        self.registers: Registers = [0]*(num_registers+1)  # +dummy for instruction pointer
         self.operations: list[Operation] = [
             self.addr, self.addi,
             self.mulr, self.muli,
@@ -18,8 +20,31 @@ class Device:
             self.gtir, self.gtri, self.gtrr,
             self.eqir, self.eqri, self.eqrr
         ]
+        self.program: Program = []
+        self.ip: int = len(self.registers)-1  # instruction pointer
 
-    def reset(self) -> None:
+    def run(self) -> None:
+        while True:
+            #print(self.registers)
+            operation, parameters = self.program[self.registers[self.ip]]
+            operation(*parameters)
+            if self.registers[self.ip]+1 >= len(self.program):
+                break
+            self.registers[self.ip] += 1
+
+    def set_pointer(self, ip: int) -> None:
+        if ip >= len(self.registers)-1:
+            raise ValueError(f"Instruction pointer address {ip} invalid.")
+        self.ip = ip
+
+    def add_instruction(self, op: str, parameters: Parameters) -> None:
+        try:
+            operation = getattr(self, op)
+        except AttributeError:
+            raise AttributeError(f"Operation {op} not available.")
+        self.program.append((operation, parameters))
+
+    def reset_registers(self) -> None:
         self.registers = [0]*len(self.registers)
 
     def addr(self, a: int, b: int, c: int) -> None:

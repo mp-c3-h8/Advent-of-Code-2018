@@ -29,9 +29,9 @@ def solve(data: str) -> tuple[int, int]:
         after = [*map(int, regexp.findall(rows[2]))]
         num_valid = 0
         for operation in device.operations:
-            device.registers = before[::]
+            device.registers = before[::]+[0]  # dummy
             operation(a, b, c)
-            if device.registers == after:
+            if device.registers == after+[0]:
                 num_valid += 1
                 candidates[opcode].add(operation)
         p1 += num_valid >= 3
@@ -48,10 +48,12 @@ def solve(data: str) -> tuple[int, int]:
         for cand in candidates.values():
             cand.difference_update(to_remove)
 
-    device.reset()
+    device.reset_registers()
     for instr in program.splitlines():
         opcode, a, b, c = map(int, instr.split(" "))
-        operations[opcode](a, b, c)
+        operation = operations[opcode]
+        device.program.append((operation, (a, b, c)))
+    device.run()
     p2 = device.registers[0]
 
     return p1, p2
