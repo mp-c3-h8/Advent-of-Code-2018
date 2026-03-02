@@ -84,27 +84,6 @@ def rescue_friend(grid: Grid, target: Pos) -> int:
     shortest_paths: dict[State, int] = {start_state: 0}  # state: minutes
     done: set[State] = set()
 
-    def enqueue(pos: Pos, tool: Tool, minutes: int) -> None:
-        nonlocal q, done, shortest_paths, target, target_tool
-
-        if pos[0] < 0 or pos[1] < 0:
-            return
-
-        region = grid[pos[0]][pos[1]]
-        if not tool_valid_for_region(tool, region):
-            return
-
-        state = (pos, tool)
-        if state in done:
-            return
-        if state in shortest_paths and shortest_paths[state] <= minutes:
-            return
-
-        shortest_paths[state] = minutes
-        heuristic = abs(target[0]-pos[0]) + abs(target[1]-pos[1]) + (tool != target_tool)*7
-        prio = minutes + heuristic
-        heappush(q, (prio, minutes, state))
-
     while q:
         prio, minutes, state = heappop(q)
         pos, tool = state
@@ -120,14 +99,37 @@ def rescue_friend(grid: Grid, target: Pos) -> int:
         y, x = pos
         region = grid[y][x]
         new_tool = CHANGE_TOOL[region][tool]
+        new_state = (pos, new_tool)
         new_minutes = minutes + 7
-        enqueue(pos, new_tool, new_minutes)
+        if new_state not in done:
+            if new_state not in shortest_paths or shortest_paths[new_state] > new_minutes:
+                shortest_paths[new_state] = new_minutes
+                heuristic = abs(target[0]-y) + abs(target[1]-x) + (new_tool != target_tool)*7
+                new_prio = new_minutes + heuristic
+                heappush(q, (new_prio, new_minutes, new_state))
 
         # move
         for dy, dx in DIRS:
+
             new_pos = (y+dy, x+dx)
+            if new_pos[0] < 0 or new_pos[1] < 0:
+                continue
+
+            new_region = grid[new_pos[0]][new_pos[1]]
+            if not tool_valid_for_region(tool, new_region):
+                continue
+
+            new_state = (new_pos, tool)
             new_minutes = minutes + 1
-            enqueue(new_pos, tool, new_minutes)
+            if new_state in done:
+                continue
+            if new_state in shortest_paths and shortest_paths[new_state] <= new_minutes:
+                continue
+
+            shortest_paths[new_state] = new_minutes
+            heuristic = abs(target[0]-new_pos[0]) + abs(target[1]-new_pos[1]) + (tool != target_tool)*7
+            new_prio = new_minutes + heuristic
+            heappush(q, (new_prio, new_minutes, new_state))
 
     raise ValueError("No rescue path found :(")
 
