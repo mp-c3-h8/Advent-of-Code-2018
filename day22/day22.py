@@ -13,6 +13,7 @@ type Pos = tuple[int, int]  # (y,x) y downwards
 type Region = int
 type Tool = int
 type Grid = list[list[int]]
+type State = tuple[Pos, Tool]
 
 
 def parse(data: str) -> tuple[int, Pos]:
@@ -46,15 +47,8 @@ def risk_level(depth: int, target: Pos) -> tuple[int, Grid]:
     erosion[target[0]][target[1]] = (0 + depth) % 20183
     region_type[target[0]][target[1]] = erosion[target[0]][target[1]] % 3
 
-    # print_cave(region_type)
     risk = sum(sum(row[:dimx]) for row in region_type[:dimy])
     return risk, region_type
-
-
-def print_cave(region_type: list[list[int]]) -> None:
-    for row in region_type:
-        p = "".join("." if t == 0 else "=" if t == 1 else "|" for t in row)
-        print(p)
 
 
 # TOOLS:
@@ -62,17 +56,23 @@ def print_cave(region_type: list[list[int]]) -> None:
 # 1 = torch
 # 2 = climbing gear
 def tools_for_region(region: Region) -> Iterator[Tool]:
-    if region == 0:  # rocky
-        yield from (1, 2)
-    elif region == 1:  # wet
-        yield from (0, 2)
-    elif region == 2:  # narrow
-        yield from (0, 1)
-    else:
-        raise ValueError(f"Region type {region} invalid.")
+    # below simplified
+    yield from (tool for tool in (0, 1, 2) if tool != region)
+
+    # if region == 0:  # rocky
+    #     yield from (1, 2)
+    # elif region == 1:  # wet
+    #     yield from (0, 2)
+    # elif region == 2:  # narrow
+    #     yield from (0, 1)
+    # else:
+    #     raise ValueError(f"Region type {region} invalid.")
 
 
 def tool_valid_for_region(tool: Tool, region: Region) -> bool:
+    # below simplified
+    return tool != region
+
     if tool == 0:  # neither
         return region != 0  # not rocky
     elif tool == 1:  # torch
@@ -80,9 +80,6 @@ def tool_valid_for_region(tool: Tool, region: Region) -> bool:
     elif tool == 2:  # climbing gear
         return region != 2  # not wet
     raise ValueError(f"Tool {tool} invalid.")
-
-
-type State = tuple[Pos, Tool]
 
 
 def rescue_friend(grid: Grid, target: Pos) -> int:
