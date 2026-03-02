@@ -28,20 +28,14 @@ def risk_level(depth: int, target: Pos) -> tuple[int, Grid]:
     erosion: Grid = [[0]*(dimx+EXTRA) for _ in range((dimy+EXTRA))]
     region_type: Grid = [[0]*(dimx+EXTRA) for _ in range((dimy+EXTRA))]
 
-    # y == 0
-    erosion[0] = [(16807*x + depth) % MOD for x in range((dimx+EXTRA))]
-    region_type[0] = [e % 3 for e in erosion[0]]
-
-    # x == 0
     for y in range(len(erosion)):
-        erosion[y][0] = (y * 48271 + depth) % MOD
-        region_type[y][0] = erosion[y][0] % 3
-
-    # y > 0 and x > 0
-    for y in range(1, (dimy+EXTRA)):
-        for x in range(1, (dimx+EXTRA)):
+        for x in range(len(erosion[0])):
             if (y, x) == target:
                 erosion[y][x] = (0 + depth) % MOD
+            elif y == 0:
+                erosion[y][x] = (x*16807 + depth) % MOD
+            elif x == 0:
+                erosion[y][x] = (y*48271 + depth) % MOD
             else:
                 erosion[y][x] = (erosion[y-1][x] * erosion[y][x-1] + depth) % MOD
             region_type[y][x] = erosion[y][x] % 3
@@ -110,7 +104,6 @@ def rescue_friend(grid: Grid, target: Pos) -> int:
 
         # move
         for dy, dx in DIRS:
-
             new_pos = (y+dy, x+dx)
             if new_pos[0] < 0 or new_pos[1] < 0:
                 continue
