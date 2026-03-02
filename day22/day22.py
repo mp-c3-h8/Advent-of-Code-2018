@@ -21,7 +21,7 @@ def parse(data: str) -> tuple[int, Pos]:
 
 
 def risk_level(depth: int, target: Pos) -> tuple[int, Grid]:
-    EXTRA = 1000
+    EXTRA = 200
     dimy = target[0] + 1
     dimx = target[1] + 1
     erosion: Grid = [[0]*(dimx+EXTRA) for _ in range((dimy+EXTRA))]
@@ -59,15 +59,15 @@ def print_cave(region_type: list[list[int]]) -> None:
 
 # TOOLS:
 # 0 = neither
-# 1 = climbing gear
-# 2 = torch
+# 1 = torch
+# 2 = climbing gear
 def tools_for_region(region: Region) -> Iterator[Tool]:
     if region == 0:  # rocky
         yield from (1, 2)
     elif region == 1:  # wet
-        yield from (0, 1)
-    elif region == 2:  # narrow
         yield from (0, 2)
+    elif region == 2:  # narrow
+        yield from (0, 1)
     else:
         raise ValueError(f"Region type {region} invalid.")
 
@@ -75,10 +75,10 @@ def tools_for_region(region: Region) -> Iterator[Tool]:
 def tool_valid_for_region(tool: Tool, region: Region) -> bool:
     if tool == 0:  # neither
         return region != 0  # not rocky
-    elif tool == 1:  # climbing gear
-        return region != 2  # not narrow
-    elif tool == 2:  # torch
+    elif tool == 1:  # torch
         return region != 1  # not wet
+    elif tool == 2:  # climbing gear
+        return region != 2  # not wet
     raise ValueError(f"Tool {tool} invalid.")
 
 
@@ -86,10 +86,10 @@ type State = tuple[Pos, Tool]
 
 
 def rescue_friend(grid: Grid, target: Pos) -> int:
-    DIRS: list[Pos] = [(0, 0), (-1, 0), (1, 0), (0, 1), (0, -1)]  # no movement included
+    DIRS: list[Pos] = [(-1, 0), (1, 0), (0, 1), (0, -1)]
     start: Pos = (0, 0)
-    starting_tool: Tool = 2  # torch
-    target_tool: Tool = 2  # torch
+    starting_tool: Tool = 1  # torch
+    target_tool: Tool = 1  # torch
     start_state: State = (start, starting_tool)
     target_state: State = (target, target_tool)
     q: list[tuple[int, int, State]] = [(0, 0, start_state)]  # (prio,minutes,state)
@@ -108,15 +108,14 @@ def rescue_friend(grid: Grid, target: Pos) -> int:
         done.add(state)
 
         k += 1
-        # TODO: pos == target + extra minutes
-        if state == target_state:
+        if pos == target:
             print(f"i={i},k={k}")
-            return minutes
+            return minutes + (tool != target_tool) * 7
 
         region = grid[pos[0]][pos[1]]
         for new_tool in tools_for_region(region):
             minutes_plus_toolchange = minutes + (tool != new_tool) * 7
-            for d in DIRS:  # (0,0) aka no movement included
+            for d in DIRS:
                 new_pos = (pos[0]+d[0], pos[1]+d[1])
                 if new_pos[0] < 0 or new_pos[1] < 0:
                     continue
@@ -129,7 +128,7 @@ def rescue_friend(grid: Grid, target: Pos) -> int:
                 if new_state in done:
                     continue
 
-                new_minutes = minutes_plus_toolchange + (pos != new_pos)
+                new_minutes = minutes_plus_toolchange + 1
                 if new_state in shortest_paths and shortest_paths[new_state] <= new_minutes:
                     continue
 
