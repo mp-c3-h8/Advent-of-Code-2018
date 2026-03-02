@@ -22,29 +22,29 @@ def parse(data: str) -> tuple[int, Pos]:
 
 def risk_level(depth: int, target: Pos) -> tuple[int, Grid]:
     EXTRA = 200
+    MOD = 20183
     dimy = target[0] + 1
     dimx = target[1] + 1
     erosion: Grid = [[0]*(dimx+EXTRA) for _ in range((dimy+EXTRA))]
     region_type: Grid = [[0]*(dimx+EXTRA) for _ in range((dimy+EXTRA))]
 
     # y == 0
-    erosion[0] = [(16807*x + depth) % 20183 for x in range((dimx+EXTRA))]
-    region_type[0] = [(16807*x + depth) % 20183 % 3 for x in range((dimx+EXTRA))]
+    erosion[0] = [(16807*x + depth) % MOD for x in range((dimx+EXTRA))]
+    region_type[0] = [e % 3 for e in erosion[0]]
 
     # x == 0
     for y in range(len(erosion)):
-        erosion[y][0] = (y * 48271 + depth) % 20183
+        erosion[y][0] = (y * 48271 + depth) % MOD
         region_type[y][0] = erosion[y][0] % 3
 
     # y > 0 and x > 0
     for y in range(1, (dimy+EXTRA)):
         for x in range(1, (dimx+EXTRA)):
-            erosion[y][x] = (erosion[y-1][x] * erosion[y][x-1] + depth) % 20183
+            if (y, x) == target:
+                erosion[y][x] = (0 + depth) % MOD
+            else:
+                erosion[y][x] = (erosion[y-1][x] * erosion[y][x-1] + depth) % MOD
             region_type[y][x] = erosion[y][x] % 3
-
-    # target
-    erosion[target[0]][target[1]] = (0 + depth) % 20183
-    region_type[target[0]][target[1]] = erosion[target[0]][target[1]] % 3
 
     risk = sum(sum(row[:dimx]) for row in region_type[:dimy])
     return risk, region_type
@@ -84,53 +84,50 @@ def rescue_friend(grid: Grid, target: Pos) -> int:
     shortest_paths: dict[State, int] = {start_state: 0}  # state: minutes
     done: set[State] = set()
 
-    def enqueue(pos: Pos, region: Region, tool: Tool, minutes: int) -> None:
-        nonlocal q, done, shortest_paths
-        state = (pos, tool)
+    def enqueue(pos: Pos, tool: Tool, minutes: int) -> None:
+        nonlocal q, done, shortest_paths, target, target_tool
 
+        if pos[0] < 0 or pos[1] < 0:
+            return
+
+        region = grid[pos[0]][pos[1]]
+        if not tool_valid_for_region(tool, region):
+            return
+
+        state = (pos, tool)
         if state in done:
             return
         if state in shortest_paths and shortest_paths[state] <= minutes:
             return
-        if pos[0] < 0 or pos[1] < 0:
-            return
-        if not tool_valid_for_region(tool, region):
-            return
 
         shortest_paths[state] = minutes
         heuristic = abs(target[0]-pos[0]) + abs(target[1]-pos[1]) + (tool != target_tool)*7
-        prio = new_minutes + heuristic
+        prio = minutes + heuristic
         heappush(q, (prio, minutes, state))
 
-    i = k = 0
     while q:
         prio, minutes, state = heappop(q)
         pos, tool = state
 
-        i += 1
         if state in done:
             continue
         done.add(state)
 
-        k += 1
-        if pos == target:
-            print("old: i=146987,k=113908")
-            print(f"i={i},k={k}")
-            return minutes + (tool != target_tool) * 7
-
-        region = grid[pos[0]][pos[1]]
+        if state == target_state:
+            return minutes
 
         # change tool
+        y, x = pos
+        region = grid[y][x]
         new_tool = CHANGE_TOOL[region][tool]
         new_minutes = minutes + 7
-        enqueue(pos, region, new_tool, new_minutes)
+        enqueue(pos, new_tool, new_minutes)
 
         # move
-        for d in DIRS:
-            new_pos = (pos[0]+d[0], pos[1]+d[1])
-            new_region = grid[new_pos[0]][new_pos[1]]
+        for dy, dx in DIRS:
+            new_pos = (y+dy, x+dx)
             new_minutes = minutes + 1
-            enqueue(new_pos, new_region, tool, new_minutes)
+            enqueue(new_pos, tool, new_minutes)
 
     raise ValueError("No rescue path found :(")
 
