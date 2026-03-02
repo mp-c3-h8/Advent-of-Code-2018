@@ -84,6 +84,11 @@ def tool_valid_for_region(tool: Tool, region: Region) -> bool:
 
 def rescue_friend(grid: Grid, target: Pos) -> int:
     DIRS: list[Pos] = [(-1, 0), (1, 0), (0, 1), (0, -1)]
+    CHANGE_TOOL: dict[Region, dict[Tool, Tool]] = {
+        0: {1: 2, 2: 1},  # rocky
+        1: {0: 2, 2: 0},  # wet
+        2: {0: 1, 1: 0}  # narrow
+    }
     start: Pos = (0, 0)
     starting_tool: Tool = 1  # torch
     target_tool: Tool = 1  # torch
@@ -106,32 +111,43 @@ def rescue_friend(grid: Grid, target: Pos) -> int:
 
         k += 1
         if pos == target:
+            print("old: i=283704,k=112452")
             print(f"i={i},k={k}")
             return minutes + (tool != target_tool) * 7
 
         region = grid[pos[0]][pos[1]]
-        for new_tool in tools_for_region(region):
-            minutes_plus_toolchange = minutes + (tool != new_tool) * 7
-            for d in DIRS:
-                new_pos = (pos[0]+d[0], pos[1]+d[1])
-                if new_pos[0] < 0 or new_pos[1] < 0:
-                    continue
 
-                new_region = grid[new_pos[0]][new_pos[1]]
-                if not tool_valid_for_region(new_tool, new_region):
-                    continue
-
-                new_state = (new_pos, new_tool)
-                if new_state in done:
-                    continue
-
-                new_minutes = minutes_plus_toolchange + 1
-                if new_state in shortest_paths and shortest_paths[new_state] <= new_minutes:
-                    continue
-
-                heuristic = abs(target[0]-new_pos[0]) + abs(target[1]-new_pos[1]) + (new_tool != target_tool)*7
+        # change tool
+        new_tool = CHANGE_TOOL[region][tool]
+        new_state = (pos, new_tool)
+        if new_state not in done:
+            new_minutes = minutes + 7
+            if new_state not in shortest_paths or shortest_paths[new_state] > new_minutes:
+                heuristic = abs(target[0]-pos[0]) + abs(target[1]-pos[1]) + (new_tool != target_tool)*7
                 new_prio = new_minutes + heuristic
                 heappush(q, (new_prio, new_minutes, new_state))
+
+        # move
+        for d in DIRS:
+            new_pos = (pos[0]+d[0], pos[1]+d[1])
+            if new_pos[0] < 0 or new_pos[1] < 0:
+                continue
+
+            new_region = grid[new_pos[0]][new_pos[1]]
+            if not tool_valid_for_region(tool, new_region):
+                continue
+
+            new_state = (new_pos, tool)
+            if new_state in done:
+                continue
+
+            new_minutes = minutes + 1
+            if new_state in shortest_paths and shortest_paths[new_state] <= new_minutes:
+                continue
+
+            heuristic = abs(target[0]-new_pos[0]) + abs(target[1]-new_pos[1]) + (tool != target_tool)*7
+            new_prio = new_minutes + heuristic
+            heappush(q, (new_prio, new_minutes, new_state))
     raise ValueError("No rescue path found :(")
 
 
