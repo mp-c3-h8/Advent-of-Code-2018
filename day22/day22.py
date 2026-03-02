@@ -2,7 +2,6 @@ import os.path
 import os
 import sys
 import re
-from typing import Iterator
 from heapq import heapify, heappop, heappush
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -55,20 +54,6 @@ def risk_level(depth: int, target: Pos) -> tuple[int, Grid]:
 # 0 = neither
 # 1 = torch
 # 2 = climbing gear
-def tools_for_region(region: Region) -> Iterator[Tool]:
-    # below simplified
-    yield from (tool for tool in (0, 1, 2) if tool != region)
-
-    # if region == 0:  # rocky
-    #     yield from (1, 2)
-    # elif region == 1:  # wet
-    #     yield from (0, 2)
-    # elif region == 2:  # narrow
-    #     yield from (0, 1)
-    # else:
-    #     raise ValueError(f"Region type {region} invalid.")
-
-
 def tool_valid_for_region(tool: Tool, region: Region) -> bool:
     # below simplified
     return tool != region
@@ -99,6 +84,24 @@ def rescue_friend(grid: Grid, target: Pos) -> int:
     shortest_paths: dict[State, int] = {start_state: 0}  # state: minutes
     done: set[State] = set()
 
+    def enqueue(pos: Pos, region: Region, tool: Tool, minutes: int) -> None:
+        nonlocal q, done, shortest_paths
+        state = (pos, tool)
+
+        if state in done:
+            return
+        if state in shortest_paths and shortest_paths[state] <= minutes:
+            return
+        if pos[0] < 0 or pos[1] < 0:
+            return
+        if not tool_valid_for_region(tool, region):
+            return
+
+        shortest_paths[state] = minutes
+        heuristic = abs(target[0]-pos[0]) + abs(target[1]-pos[1]) + (tool != target_tool)*7
+        prio = new_minutes + heuristic
+        heappush(q, (prio, minutes, state))
+
     i = k = 0
     while q:
         prio, minutes, state = heappop(q)
@@ -111,7 +114,7 @@ def rescue_friend(grid: Grid, target: Pos) -> int:
 
         k += 1
         if pos == target:
-            print("old: i=283704,k=112452")
+            print("old: i=146987,k=113908")
             print(f"i={i},k={k}")
             return minutes + (tool != target_tool) * 7
 
@@ -119,35 +122,16 @@ def rescue_friend(grid: Grid, target: Pos) -> int:
 
         # change tool
         new_tool = CHANGE_TOOL[region][tool]
-        new_state = (pos, new_tool)
-        if new_state not in done:
-            new_minutes = minutes + 7
-            if new_state not in shortest_paths or shortest_paths[new_state] > new_minutes:
-                heuristic = abs(target[0]-pos[0]) + abs(target[1]-pos[1]) + (new_tool != target_tool)*7
-                new_prio = new_minutes + heuristic
-                heappush(q, (new_prio, new_minutes, new_state))
+        new_minutes = minutes + 7
+        enqueue(pos, region, new_tool, new_minutes)
 
         # move
         for d in DIRS:
             new_pos = (pos[0]+d[0], pos[1]+d[1])
-            if new_pos[0] < 0 or new_pos[1] < 0:
-                continue
-
             new_region = grid[new_pos[0]][new_pos[1]]
-            if not tool_valid_for_region(tool, new_region):
-                continue
-
-            new_state = (new_pos, tool)
-            if new_state in done:
-                continue
-
             new_minutes = minutes + 1
-            if new_state in shortest_paths and shortest_paths[new_state] <= new_minutes:
-                continue
+            enqueue(new_pos, new_region, tool, new_minutes)
 
-            heuristic = abs(target[0]-new_pos[0]) + abs(target[1]-new_pos[1]) + (tool != target_tool)*7
-            new_prio = new_minutes + heuristic
-            heappush(q, (new_prio, new_minutes, new_state))
     raise ValueError("No rescue path found :(")
 
 
