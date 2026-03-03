@@ -2,7 +2,7 @@ import os.path
 import os
 import sys
 import re
-from enum import Enum
+from enum import Enum, auto
 from copy import deepcopy
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -13,13 +13,13 @@ type AttackType = str
 
 
 class Team(Enum):
-    IMMUNE_SYSTEM = 0
-    INFECTION = 1
+    IMMUNE_SYSTEM = auto()
+    INFECTION = auto()
 
 
 class Units:
     __slots__ = ["team", "count", "hp", "attack_damage", "attack_type",
-                 "initiative", "is_dead", "weaknesses", "immunities"]
+                 "initiative", "weaknesses", "immunities"]
 
     def __init__(self, team: Team, count: int, hp: int, attack_damage: int, attack_type: AttackType, initiative: int) -> None:
         self.team: Team = team
@@ -29,7 +29,6 @@ class Units:
         self.attack_type: AttackType = attack_type
         self.initiative: int = initiative
 
-        self.is_dead: bool = False
         self.weaknesses: set[AttackType] = set()
         self.immunities: set[AttackType] = set()
 
@@ -77,39 +76,40 @@ def sim_combat(all_units: list[Units], boosted: bool = False) -> int:
     population = sum(u.count for u in all_units)
     for i in range(1, 10**6):
         # PHASE: target selection
-        selections: list[tuple[Units, Units]] = []  # (attacker,defender)
-        selected: set[Units] = set()
+        pairings: list[tuple[Units, Units]] = []  # (attacker,defender)
+        chosen: set[Units] = set()
         # who chooses first?
         all_units.sort(key=lambda u: (u.effective_power, u.initiative), reverse=True)
         for attacker in all_units:
             # who to attack?
-            targets = sorted((defender for defender in all_units if defender.team != attacker.team and defender not in selected and attacker.damage_to_units(defender) != 0),
+            targets = sorted((defender for defender in all_units
+                              if defender.team != attacker.team
+                              and defender not in chosen
+                              and attacker.damage_to_units(defender) != 0),
                              key=lambda defender: (attacker.damage_to_units(defender), defender.effective_power, defender.initiative), reverse=True)
             if len(targets) == 0:
                 continue
             target_chosen = targets[0]
-            selected.add(target_chosen)
-            selections.append((attacker, target_chosen))
+            chosen.add(target_chosen)
+            pairings.append((attacker, target_chosen))
 
         # PHASE: attacking
         # who attacks first?
-        selections.sort(key=lambda s: s[0].initiative, reverse=True)
-        for attacker, defender in selections:
-            if attacker.is_dead or defender.is_dead:
-                continue
+        pairings.sort(key=lambda s: s[0].initiative, reverse=True)
+        for attacker, defender in pairings:
+            # might be zero if attacker count went to zero
             units_lost = attacker.damage_to_units(defender) // defender.hp
             defender.count -= units_lost
             if defender.count <= 0:
                 defender.count = 0
-                defender.is_dead = True
                 all_units.remove(defender)
 
         # did combat progress?
         new_population = sum(u.count for u in all_units)
         if new_population == population:
+
             # do we have immune vs. immune? or stalemate?
             remaining_teams: set[Team] = set(unit.team for unit in all_units)
-
             if len(remaining_teams) > 1:
                 return -1
 
@@ -124,18 +124,36 @@ def sim_combat(all_units: list[Units], boosted: bool = False) -> int:
         raise ValueError("Max iterations reached.")
 
 
-def boost_reindeer(all_units: list[Units]) -> int:
-    for boost in range(1, 10**6):
-        new_units = deepcopy(all_units)
-        for units in new_units:
-            if units.team == Team.IMMUNE_SYSTEM:
-                units.attack_damage += boost
+def do_boost(all_units: list[Units], boost: int) -> list[Units]:
+    new_units = deepcopy(all_units)
+    for units in new_units:
+        if units.team == Team.IMMUNE_SYSTEM:
+            units.attack_damage += boost
+    return new_units
 
-        outcome = sim_combat(new_units, True)
+
+def boost_reindeer(all_units: list[Units]) -> int:
+    # binary search but with leeway
+    # cause sim_combot is not strictly monotonic
+    boost_min = 0
+    boost_max = 1
+    while sim_combat(do_boost(all_units, boost_max), True) == -1:
+        boost_max *= 2
+
+    while boost_max - boost_min != 1:
+        mid = (boost_min + boost_max) // 2
+        outcome = sim_combat(do_boost(all_units, mid), True)
+        if outcome == -1:
+            boost_min = mid
+        else:
+            boost_max = mid
+
+    for boost in range(boost_min-2, boost_max+2):
+        outcome = sim_combat(do_boost(all_units, boost), True)
         if outcome != -1:
             return outcome
     else:
-        raise ValueError("Max iterations reached.")
+        raise ValueError("Binary search failed.")
 
 
 @timed("All")
