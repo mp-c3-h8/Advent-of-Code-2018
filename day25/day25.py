@@ -19,18 +19,14 @@ def parse(data: str) -> list[Vec4]:
     return res
 
 
-def manhatten(u: Vec4, v: Vec4) -> int:
-    return sum(abs(u_i-v_i) for u_i, v_i in zip(u, v))
-
-
 def num_constellations(points: list[Vec4]) -> int:
-    constellations: list[list[Vec4]] = []
-    for point in points:
+    constellations: list[set[Vec4]] = []
+    for (x, y, z, t) in points:
         new_constellations = []
-        new_con = [point]
+        new_con = {(x, y, z, t)}
         for con in constellations:
-            if any(manhatten(point, v) <= 3 for v in con):
-                new_con.extend(con)
+            if any(abs(x-x2) + abs(y-y2) + abs(z-z2) + abs(t-t2) <= 3 for x2, y2, z2, t2 in con):
+                new_con.update(con)
             else:
                 new_constellations.append(con)
 
