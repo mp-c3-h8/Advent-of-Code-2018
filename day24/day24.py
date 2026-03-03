@@ -95,14 +95,14 @@ def sim_combat(all_units: list[Units], boosted: bool = False) -> int:
 
         # PHASE: attacking
         # who attacks first?
-        pairings.sort(key=lambda s: s[0].initiative, reverse=True)
+        pairings.sort(key=lambda pair: pair[0].initiative, reverse=True)
         for attacker, defender in pairings:
             # might be zero if attacker count went to zero
             units_lost = attacker.damage_to_units(defender) // defender.hp
             defender.count -= units_lost
             if defender.count <= 0:
                 defender.count = 0
-                all_units.remove(defender)
+                all_units.remove(defender)  # slow
 
         # did combat progress?
         new_population = sum(u.count for u in all_units)
